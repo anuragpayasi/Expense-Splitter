@@ -12,136 +12,171 @@ export default function Home() {
   const [people, setPeople] = useState([]);
   const [expenses, setExpenses] = useState([]);
 
-  // Add Person
+  // ---------------- ADD PERSON ----------------
   const addPerson = (name) => {
     if (!name.trim()) return;
     setPeople([...people, { id: Date.now(), name }]);
   };
 
-  // Add Expense
+  // ---------------- ADD EXPENSE ----------------
   const addExpense = (data) => {
-    setExpenses([...expenses, data]);
+    setExpenses([...expenses, { ...data, id: Date.now() }]);
   };
 
-  // -----------------------
-  // 🧮 SUMMARY CALCULATION
-  // -----------------------
-  const calculateSummary = () => {
-    if (people.length === 0 || expenses.length === 0) return [];
+  // ---------------- DELETE ----------------
+  const deletePerson = (id) => {
+    setPeople(people.filter((p) => p.id !== id));
+    setExpenses(expenses.filter((e) => e.paidBy !== id));
+  };
 
-    const paidMap = {};
-    people.forEach((p) => (paidMap[p.id] = 0));
+  const deleteExpense = (id) => {
+    setExpenses(expenses.filter((e) => e.id !== id));
+  };
 
-    expenses.forEach((e) => {
-      paidMap[e.paidBy] += Number(e.amount);
+  // ---------------- SUMMARY LOGIC ----------------
+const calculateSummary = () => {
+  if (people.length === 0 || expenses.length === 0) return [];
+
+  const paidMap = {};
+  const shareMap = {};
+
+  // INIT
+  people.forEach((p) => {
+    paidMap[p.id] = 0;
+    shareMap[p.id] = 0;
+  });
+
+  // STEP 1: CALCULATE PAID + SHARE
+  expenses.forEach((e) => {
+    const participants = e.participants || [];
+
+    if (participants.length === 0) return;
+
+    const share = Number(e.amount) / participants.length;
+
+    // paid by person
+    paidMap[e.paidBy] += Number(e.amount);
+
+    // split among selected users
+    participants.forEach((pid) => {
+      shareMap[pid] += share;
     });
+  });
 
-    const totalExpense = expenses.reduce(
-      (sum, e) => sum + Number(e.amount),
-      0
-    );
+  // STEP 2: BALANCE CALCULATION
+  const balance = people.map((p) => {
+    const net = paidMap[p.id] - shareMap[p.id];
 
-    const splitAmount = totalExpense / people.length;
-
-    const balance = people.map((p) => ({
+    return {
       id: p.id,
       name: p.name,
-      paid: paidMap[p.id],
-      owes: splitAmount - paidMap[p.id],
-    }));
+      balance: net, // + gets money, - owes money
+    };
+  });
 
-    const owes = balance.filter((b) => b.owes > 0);
-    const gets = balance.filter((b) => b.owes < 0);
+  // STEP 3: SEPARATE OWES & GETS
+  const owes = balance
+    .filter((b) => b.balance < 0)
+    .map((b) => ({ ...b, balance: Math.abs(b.balance) }));
 
-    const finalSettle = [];
-    let i = 0,
-      j = 0;
+  const gets = balance.filter((b) => b.balance > 0);
 
-    while (i < owes.length && j < gets.length) {
-      const owePerson = owes[i];
-      const getPerson = gets[j];
+  // STEP 4: SETTLEMENT LOGIC
+  const result = [];
 
-      const amount = Math.min(
-        owePerson.owes,
-        Math.abs(getPerson.owes)
-      );
+  let i = 0,
+    j = 0;
 
-      finalSettle.push({
-        from: owePerson.name,
-        to: getPerson.name,
-        amount: amount.toFixed(2),
-      });
+  while (i < owes.length && j < gets.length) {
+    const owe = owes[i];
+    const get = gets[j];
 
-      owePerson.owes -= amount;
-      getPerson.owes += amount;
+    const amount = Math.min(owe.balance, get.balance);
 
-      if (owePerson.owes <= 0.01) i++;
-      if (getPerson.owes >= -0.01) j++;
-    }
+    result.push({
+      from: owe.name,
+      to: get.name,
+      amount: amount.toFixed(2),
+    });
 
-    return finalSettle;
-  };
+    owe.balance -= amount;
+    get.balance -= amount;
+
+    if (owe.balance <= 0.01) i++;
+    if (get.balance <= 0.01) j++;
+  }
+
+  return result;
+};
 
   const summary = calculateSummary();
 
-  // --------------
-  // FINAL TOTAL UI
-  // --------------
   const totalExpense = expenses.reduce(
     (sum, e) => sum + Number(e.amount),
     0
   );
+
+  // ---------------- PDF ----------------
   const downloadPDF = () => {
-  const doc = new jsPDF();
-  let y = 10;
+    const doc = new jsPDF();
 
-  doc.setFontSize(18);
-  doc.text("Expense Splitter Summary", 10, y);
-  y += 10;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(0, 0, 210, 297, "F");
 
-  doc.setFontSize(14);
-  doc.text("People:", 10, y);
-  y += 8;
+    let y = 15;
 
-  people.forEach((p) => {
-    doc.setFontSize(12);
-    doc.text(`- ${p.name}`, 12, y);
-    y += 6;
-  });
+    doc.setFontSize(20);
+    doc.text("Expense Splitter Summary", 14, y);
+    y += 10;
 
-  y += 4;
-  doc.setFontSize(14);
-  doc.text("Expenses:", 10, y);
-  y += 8;
+    // PEOPLE
+    doc.setFontSize(14);
+    doc.text("People", 14, y);
+    y += 8;
 
-  expenses.forEach((e) => {
-    doc.setFontSize(12);
-    const payer = people.find((p) => p.id === e.paidBy)?.name || "Unknown";
-    doc.text(
-      `- ${e.title}: ₹${e.amount} (Paid by: ${payer})`,
-      12,
-      y
-    );
-    y += 6;
-  });
+    people.forEach((p) => {
+      doc.setFontSize(11);
+      doc.text(`- ${p.name}`, 18, y);
+      y += 6;
+    });
 
-  y += 4;
-  doc.setFontSize(14);
-  doc.text("Split Summary:", 10, y);
-  y += 8;
+    y += 5;
 
-  summary.forEach((s) => {
-    doc.setFontSize(12);
-    doc.text(
-      `• ${s.from} owes ₹${s.amount} to ${s.to}`,
-      12,
-      y
-    );
-    y += 6;
-  });
+    // EXPENSES
+    doc.setFontSize(14);
+    doc.text("Expenses", 14, y);
+    y += 8;
 
-  doc.save("expense-summary.pdf");
-};
+    expenses.forEach((e) => {
+      const payer = people.find((p) => p.id === e.paidBy)?.name || "Unknown";
+      doc.setFontSize(11);
+      doc.text(
+        `- ${e.title} ₹${e.amount} (Paid by ${payer})`,
+        18,
+        y
+      );
+      y += 6;
+    });
+
+    y += 5;
+
+    // SUMMARY
+    doc.setFontSize(14);
+    doc.text("Split Summary", 14, y);
+    y += 8;
+
+    summary.forEach((s) => {
+      doc.setFontSize(11);
+      doc.text(
+        `${s.from} pays ₹${s.amount} to ${s.to}`,
+        18,
+        y
+      );
+      y += 6;
+    });
+
+    doc.save("expense-summary.pdf");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -150,88 +185,101 @@ export default function Home() {
       </h1>
 
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* People Section */}
-        <Card className="p-4 shadow-sm border">
+
+        {/* PEOPLE */}
+        <Card className="p-4">
           <h2 className="text-xl font-semibold mb-3">People</h2>
-          <Button className="w-full" onClick={() => setPersonModal(true)}>
+
+          <Button onClick={() => setPersonModal(true)} className="w-full">
             Add Person
           </Button>
 
           <ul className="mt-4 space-y-2">
             {people.length === 0 && (
-              <p className="text-gray-500 text-sm">No people added yet.</p>
+              <p className="text-gray-500 text-sm">No people added</p>
             )}
+
             {people.map((p) => (
-              <li key={p.id} className="p-2 bg-gray-100 rounded border">
+              <li
+                key={p.id}
+                className="flex justify-between p-2 bg-gray-100 rounded"
+              >
                 {p.name}
+                <button
+                  onClick={() => deletePerson(p.id)}
+                  className="text-red-500"
+                >
+                  ✕
+                </button>
               </li>
             ))}
-            
           </ul>
         </Card>
 
-        {/* Expense Section */}
-        <Card className="p-4 shadow-sm border">
+        {/* EXPENSES */}
+        <Card className="p-4">
           <h2 className="text-xl font-semibold mb-3">Expenses</h2>
-          <Button className="w-full" onClick={() => setExpenseModal(true)}>
+
+          <Button onClick={() => setExpenseModal(true)} className="w-full">
             Add Expense
           </Button>
 
           <ul className="mt-4 space-y-2">
             {expenses.length === 0 && (
-              <p className="text-gray-500 text-sm">No expenses added yet.</p>
+              <p className="text-gray-500 text-sm">No expenses added</p>
             )}
+
             {expenses.map((e) => (
               <li
                 key={e.id}
-                className="p-3 bg-gray-100 rounded border flex justify-between"
+                className="flex justify-between p-2 bg-gray-100 rounded"
               >
                 <span>
-                  <strong>{e.title}</strong> — ₹{e.amount}
+                  {e.title} - ₹{e.amount}
                 </span>
-                <span className="text-sm text-gray-600">
-                  Paid by {people.find((p) => p.id === e.paidBy)?.name || "Unknown"}
+
+                <span className="text-sm text-gray-500">
+                  {people.find((p) => p.id === e.paidBy)?.name || "Unknown"}
                 </span>
+
+                <button
+                  onClick={() => deleteExpense(e.id)}
+                  className="text-red-500"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
         </Card>
 
-        {/* Summary Section */}
-        <Card className="p-4 md:col-span-2 shadow-sm border">
+        {/* SUMMARY */}
+        <Card className="p-4 md:col-span-2">
           <h2 className="text-xl font-semibold mb-3">Split Summary</h2>
 
-          {summary.length === 0 && (
-            <p className="text-gray-500">
-              Add people and expenses to see the summary.
-            </p>
+          <p className="mb-3">
+            Total Expense: <b>₹{totalExpense}</b>
+          </p>
+
+          {summary.length === 0 ? (
+            <p className="text-gray-500">Add data to see summary</p>
+          ) : (
+            summary.map((s, i) => (
+              <p key={i} className="p-2 bg-green-50 mb-2 rounded">
+                <b>{s.from}</b> pays <b>₹{s.amount}</b> to <b>{s.to}</b>
+              </p>
+            ))
           )}
 
-          {summary.map((s, index) => (
-            <p key={index} className="p-2 bg-green-50 border rounded mb-2">
-              <strong>{s.from}</strong> owes <strong>₹{s.amount}</strong> to{" "}
-              <strong>{s.to}</strong>
-            </p>
-          ))}
-
-          {/* Final Total Section */}
-          <div className="mt-6 p-4 bg-white border rounded shadow-sm">
-            <h3 className="text-lg font-semibold mb-3">Final Payment Summary</h3>
-
-            <div className="flex justify-between mb-2">
-              <span>Total Expense:</span>
-              <span className="font-medium">₹{totalExpense}</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span>People Count:</span>
-              <span>{people.length}</span>
-            </div>
+          <div className="mt-4 text-right">
+            <Button onClick={downloadPDF}>
+              Download PDF 📄
+            </Button>
           </div>
         </Card>
       </div>
 
-      {/* Modals */}
+      {/* MODALS */}
       <AddPersonModal
         open={personModal}
         onClose={() => setPersonModal(false)}
@@ -244,9 +292,6 @@ export default function Home() {
         onAdd={addExpense}
         people={people}
       />
-      <Button className="mt-4" onClick={downloadPDF}>
-  Download PDF
-</Button>
     </div>
   );
 }

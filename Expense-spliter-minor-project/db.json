@@ -1,0 +1,48 @@
+{
+  "people": [
+    {
+      "id": 1780048210762,
+      "name": "Rahul"
+    },
+    {
+      "id": 1780048223508,
+      "name": "mukesh"
+    },
+    {
+      "id": 1780048226986,
+      "name": "satyam"
+    },
+    {
+      "id": 1780048232483,
+      "name": "daksh"
+    },
+    {
+      "id": 1780048237212,
+      "name": "rishi"
+    }
+  ],
+  "expenses": [
+    {
+      "id": 1780048253577,
+      "title": "kirana",
+      "amount": 200,
+      "paidBy": "Rahul",
+      "splitBetween": [
+        "Rahul",
+        "satyam"
+      ]
+    },
+    {
+      "id": 1780048285928,
+      "title": "kirana",
+      "amount": 3000,
+      "paidBy": "daksh",
+      "splitBetween": [
+        "Rahul",
+        "satyam",
+        "rishi",
+        "daksh"
+      ]
+    }
+  ]
+}
