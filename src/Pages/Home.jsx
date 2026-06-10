@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FiDownload, FiPlus, FiTrash2, FiUsers } from "react-icons/fi";
 import Button from '../Components/ui/Button'
-import { Card } from "../Components/ui/Card";
+import  Card  from "../Components/ui/Card";
 import AddPersonModal from "../Components/AddPersonModal";
 import AddExpenseModal from "../Components/AddExpenseModal";
 import jsPDF from "jspdf";
