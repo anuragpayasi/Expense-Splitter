@@ -1,7 +1,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 
-export function Card({ children, className = "" }) {
+function Card({ children, className = "" }) {
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -12,3 +12,5 @@ export function Card({ children, className = "" }) {
     </motion.div>
   );
 }
+
+export default Card;
