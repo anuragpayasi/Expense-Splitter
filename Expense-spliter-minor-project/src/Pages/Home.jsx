@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FiDownload, FiPlus, FiTrash2, FiUsers } from "react-icons/fi";
-import button from '../Components/ui/Button'
+import Button from '../Components/ui/Button'
 import { Card } from "../components/ui/card";
 import AddPersonModal from "../components/AddPersonModal";
 import AddExpenseModal from "../components/AddExpenseModal";
