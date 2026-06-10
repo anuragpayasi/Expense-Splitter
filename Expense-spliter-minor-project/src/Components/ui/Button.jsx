@@ -1,7 +1,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 
-export function Button({ children, className = "", ...props }) {
+function Button({ children, className = "", ...props }) {
   return (
     <motion.button
       whileHover={{ scale: 1.04 }}
@@ -14,3 +14,5 @@ export function Button({ children, className = "", ...props }) {
     </motion.button>
   );
 }
+
+export  default Button
